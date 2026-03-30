@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霍兰德职业兴趣测试 (RIASEC) - 专业版</title>
+    <!-- 引入 Tailwind CSS 进行页面样式排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js 用于生成雷达图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 Lucide 图标 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .radio-label input:checked + div {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+        .radio-label div {
+            transition: all 0.2s ease-in-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 text-white py-8 px-6 text-center">
+            <h1 class="text-3xl font-bold mb-2 flex justify-center items-center gap-2">
+                <i data-lucide="compass"></i>
+                霍兰德职业兴趣测试 (专业版)
+            </h1>
+            <p class="text-blue-100 max-w-2xl mx-auto">
+                发现你的职业密码。本测试包含60道题目，请根据你的第一直觉，选择你对以下活动的喜爱程度。不要考虑薪酬或你的当前能力，只需遵从内心。
+            </p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-6 sm:p-10">
+            
+            <!-- Welcome / Intro Screen -->
+            <div id="intro-screen" class="text-center space-y-6 fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left my-8">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2"><i data-lucide="clock" class="w-5 h-5"></i> 耗时提示</h3>
+                        <p class="text-sm text-gray-600">大约需要 5-10 分钟完成。共有 60 道简短的问题。</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2"><i data-lucide="brain" class="w-5 h-5"></i> 评测维度</h3>
+                        <p class="text-sm text-gray-600">测试将从现实型(R)、研究型(I)、艺术型(A)、社会型(S)、企业型(E)、常规型(C)六个维度进行评估。</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2"><i data-lucide="target" class="w-5 h-5"></i> 专业报告</h3>
+                        <p class="text-sm text-gray-600">完成后将生成你的专属三位字母代码、能力雷达图及详细的职业推荐建议。</p>
+                    </div>
+                </div>
+                <button onclick="startTest()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg shadow-md transition-transform hover:scale-105">
+                    开始测试
+                </button>
+            </div>
+
+            <!-- Testing Screen -->
+            <div id="test-screen" class="hidden fade-in">
+                <!-- Progress Bar -->
+                <div class="mb-8">
+                    <div class="flex justify-between text-sm text-gray-500 mb-2">
+                        <span id="progress-text">进度: 0 / 60</span>
+                        <span id="page-text">第 1 / 6 页</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-6 flex justify-between text-sm font-medium text-gray-500 border-b pb-2">
+                    <span class="w-1/2">活动描述</span>
+                    <span class="w-1/2 flex justify-between px-2">
+                        <span>非常反感</span>
+                        <span>非常喜欢</span>
+                    </span>
+                </div>
+
+                <!-- Question Container -->
+                <div id="questions-container" class="space-y-6 mb-8">
+                    <!-- Questions will be injected here via JS -->
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between items-center mt-8 pt-4 border-t">
+                    <button id="btn-prev" onclick="prevPage()" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hidden transition-colors">
+                        上一页
+                    </button>
+                    <div id="error-msg" class="text-red-500 text-sm font-medium hidden">请回答当前页面的所有问题！</div>
+                    <button id="btn-next" onclick="nextPage()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ml-auto transition-colors">
+                        下一页
+                    </button>
+                    <button id="btn-submit" onclick="submitTest()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 ml-auto hidden transition-colors shadow-lg">
+                        提交并查看结果
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Screen -->
+            <div id="result-screen" class="hidden fade-in">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-extrabold text-gray-800 mb-2">你的霍兰德代码是：<span id="holland-code" class="text-blue-600"></span></h2>
+                    <p class="text-gray-600">以下是基于你的作答生成的专业评估报告</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+                    <!-- Radar Chart -->
+                    <div class="bg-white p-4 rounded-xl shadow border border-gray-100 flex items-center justify-center">
+                        <canvas id="radarChart" width="400" height="400"></canvas>
+                    </div>
+                    <!-- Scores -->
+                    <div class="flex flex-col justify-center space-y-4">
+                        <h3 class="text-xl font-bold border-b pb-2">得分详情 (满分50分)</h3>
+                        <div id="score-details" class="space-y-3">
+                            <!-- Score bars injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Analysis -->
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-bold text-gray-800 border-l-4 border-blue-600 pl-3">核心特质解析与职业推荐</h3>
+                    <div id="trait-analysis" class="space-y-6">
+                        <!-- Analysis injected here -->
+                    </div>
+                </div>
+
+                <div class="mt-12 text-center">
+                    <button onclick="location.reload()" class="px-8 py-3 bg-gray-800 text-white rounded-full hover:bg-gray-900 transition-colors shadow-md">
+                        重新测试
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // 60 Standard RIASEC Questions (10 per category)
+        const rawQuestions = [
+            // Realistic (R)
+            { id: 'r1', type: 'R', text: '修理汽车、电器或机械设备' },
+            { id: 'r2', type: 'R', text: '在户外进行体力劳动或农业工作' },
+            { id: 'r3', type: 'R', text: '使用木工、金工工具制作物品' },
+            { id: 'r4', type: 'R', text: '操作重型机械或驾驶大型车辆' },
+            { id: 'r5', type: 'R', text: '阅读机械、电子类的技术手册' },
+            { id: 'r6', type: 'R', text: '参与狩猎、钓鱼、野外生存等活动' },
+            { id: 'r7', type: 'R', text: '搭建模型或组装家具' },
+            { id: 'r8', type: 'R', text: '解决实际的、动手操作的问题' },
+            { id: 'r9', type: 'R', text: '学习如何使用新型的电子工具' },
+            { id: 'r10', type: 'R', text: '饲养动物或进行园艺种植' },
+            // Investigative (I)
+            { id: 'i1', type: 'I', text: '在实验室中进行科学实验' },
+            { id: 'i2', type: 'I', text: '阅读科学、天文学或物理学杂志' },
+            { id: 'i3', type: 'I', text: '解决复杂的数学难题' },
+            { id: 'i4', type: 'I', text: '研究动植物的习性和结构' },
+            { id: 'i5', type: 'I', text: '分析数据并找出其中的规律' },
+            { id: 'i6', type: 'I', text: '编写计算机程序或开发软件' },
+            { id: 'i7', type: 'I', text: '通过显微镜观察微观世界' },
+            { id: 'i8', type: 'I', text: '探讨抽象的哲学或理论问题' },
+            { id: 'i9', type: 'I', text: '对事物的运作原理进行深入调查' },
+            { id: 'i10', type: 'I', text: '阅读非虚构类的专业学术书籍' },
+            // Artistic (A)
+            { id: 'a1', type: 'A', text: '绘画、素描或进行雕塑创作' },
+            { id: 'a2', type: 'A', text: '创作诗歌、小说或编写剧本' },
+            { id: 'a3', type: 'A', text: '演奏乐器或创作音乐' },
+            { id: 'a4', type: 'A', text: '设计服装、家具或室内装潢' },
+            { id: 'a5', type: 'A', text: '参加话剧表演或戏剧演出' },
+            { id: 'a6', type: 'A', text: '参观艺术博物馆或摄影展' },
+            { id: 'a7', type: 'A', text: '进行摄影、摄像并进行后期剪辑' },
+            { id: 'a8', type: 'A', text: '在工作中展现个人的独特创意' },
+            { id: 'a9', type: 'A', text: '阅读经典文学作品或散文' },
+            { id: 'a10', type: 'A', text: '不拘泥于规则，自由地表达情感' },
+            // Social (S)
+            { id: 's1', type: 'S', text: '教导儿童或成人学习新知识' },
+            { id: 's2', type: 'S', text: '照顾病人、老人或有需要的人' },
+            { id: 's3', type: 'S', text: '倾听他人的烦恼并提供心理疏导' },
+            { id: 's4', type: 'S', text: '参与社区志愿服务或公益活动' },
+            { id: 's5', type: 'S', text: '为他人提供职业或教育方面的咨询' },
+            { id: 's6', type: 'S', text: '结交新朋友并组织社交聚会' },
+            { id: 's7', type: 'S', text: '调解朋友或同事之间的纠纷' },
+            { id: 's8', type: 'S', text: '帮助残障人士改善生活质量' },
+            { id: 's9', type: 'S', text: '在团队中关心每个成员的感受' },
+            { id: 's10', type: 'S', text: '向他人清晰地解释复杂的概念' },
+            // Enterprising (E)
+            { id: 'e1', type: 'E', text: '管理自己的企业或创业' },
+            { id: 'e2', type: 'E', text: '推销产品、服务或理念' },
+            { id: 'e3', type: 'E', text: '领导一个团队并制定发展目标' },
+            { id: 'e4', type: 'E', text: '在会议上发表演讲并说服听众' },
+            { id: 'e5', type: 'E', text: '参与政治活动或竞选领导职位' },
+            { id: 'e6', type: 'E', text: '进行商业谈判并促成交易' },
+            { id: 'e7', type: 'E', text: '策划并执行市场营销方案' },
+            { id: 'e8', type: 'E', text: '追求升职、加薪和较高的社会地位' },
+            { id: 'e9', type: 'E', text: '结交有影响力的人物以扩展人脉' },
+            { id: 'e10', type: 'E', text: '在竞争激烈的环境中力争上游' },
+            // Conventional (C)
+            { id: 'c1', type: 'C', text: '整理文件、档案并保持桌面整洁' },
+            { id: 'c2', type: 'C', text: '录入数据、打字或校对文稿错误' },
+            { id: 'c3', type: 'C', text: '管理财务账目、记账或计算税务' },
+            { id: 'c4', type: 'C', text: '使用Excel等软件制作详尽的报表' },
+            { id: 'c5', type: 'C', text: '制定详细的工作日程和旅行计划' },
+            { id: 'c6', type: 'C', text: '负责仓库盘点和库存记录' },
+            { id: 'c7', type: 'C', text: '处理银行交易或行政审批手续' },
+            { id: 'c8', type: 'C', text: '严格遵循公司规定的操作流程' },
+            { id: 'c9', type: 'C', text: '对混乱的信息进行分类和编码' },
+            { id: 'c10', type: 'C', text: '在工作追求极高的准确性和细节' }
+        ];
+
+        // Shuffle questions to prevent pattern bias, but keep it stable per session
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        const questions = shuffleArray([...rawQuestions]);
+        const questionsPerPage = 10;
+        const totalPages = Math.ceil(questions.length / questionsPerPage);
+        let currentPage = 1;
+        let answers = {};
+        let myChart = null;
+
+        const categoryInfo = {
+            'R': { name: '现实型', color: 'rgb(59, 130, 246)', bg: 'rgba(59, 130, 246, 0.2)', desc: '喜欢具体任务、动手操作、机械或户外工作。具备机械和操作能力，通常更喜欢与物品（机器、工具、动植物）打交道，而不是与人打交道。', jobs: '工程师、技工、农业专家、飞行员、建筑师、测量员' },
+            'I': { name: '研究型', color: 'rgb(139, 92, 246)', bg: 'rgba(139, 92, 246, 0.2)', desc: '喜欢探索、理解、分析事物。具备科学和数学能力，偏好独立工作以解决复杂问题，通常喜欢与观念和理论打交道。', jobs: '科学家、程序员、医生、数据分析师、大学教授、药剂师' },
+            'A': { name: '艺术型', color: 'rgb(236, 72, 153)', bg: 'rgba(236, 72, 153, 0.2)', desc: '喜欢创造、表达、无拘无束的环境。具备艺术创新能力，富有想象力，偏好非结构化的环境，通常喜欢与创意和形式打交道。', jobs: '设计师、作家、音乐家、演员、摄影师、公关人员' },
+            'S': { name: '社会型', color: 'rgb(16, 185, 129)', bg: 'rgba(16, 185, 129, 0.2)', desc: '喜欢帮助、教导、服务他人。具备人际交往和教育能力，富有同理心，通常喜欢与人打交道，关注人类的福祉和发展。', jobs: '教师、心理咨询师、护士、社会工作者、人力资源、导游' },
+            'E': { name: '企业型', color: 'rgb(245, 158, 11)', bg: 'rgba(245, 158, 11, 0.2)', desc: '喜欢领导、影响他人、竞争并达成目标。具备领导和说服能力，充满活力和野心，通常喜欢与人和项目打交道，以实现组织或经济目标。', jobs: '企业家、销售经理、律师、高管、市场营销、政客' },
+            'C': { name: '常规型', color: 'rgb(107, 114, 128)', bg: 'rgba(107, 114, 128, 0.2)', desc: '喜欢组织、注重细节、按规矩办事。具备文书和计算能力，行事严谨、可靠，通常喜欢与数据、文字和系统打交道。', jobs: '会计、行政人员、精算师、图书管理员、银行职员、审计员' }
+        };
+
+        function startTest() {
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('test-screen').classList.remove('hidden');
+            renderPage();
+        }
+
+        function renderPage() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            const startIdx = (currentPage - 1) * questionsPerPage;
+            const endIdx = Math.min(startIdx + questionsPerPage, questions.length);
+            
+            for (let i = startIdx; i < endIdx; i++) {
+                const q = questions[i];
+                const qDiv = document.createElement('div');
+                qDiv.className = 'flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-4';
+                
+                const currentAnswer = answers[q.id] || null;
+
+                let optionsHtml = '';
+                for(let val = 1; val <= 5; val++) {
+                    const isChecked = currentAnswer === val;
+                    optionsHtml += `
+                        <label class="radio-label cursor-pointer flex-1 text-center">
+                            <input type="radio" name="${q.id}" value="${val}" class="hidden" onchange="saveAnswer('${q.id}', ${val})" ${isChecked ? 'checked' : ''}>
+                            <div class="border border-gray-300 rounded-md py-2 px-1 text-sm font-medium bg-white hover:border-blue-400 text-gray-600 h-full flex items-center justify-center">
+                                ${val}
+                            </div>
+                        </label>
+                    `;
+                }
+
+                qDiv.innerHTML = `
+                    <div class="md:w-1/2 font-medium text-gray-800 flex gap-3">
+                        <span class="text-blue-500 w-6">${i + 1}.</span>
+                        <span>${q.text}</span>
+                    </div>
+                    <div class="md:w-1/2 flex justify-between gap-1 sm:gap-2">
+                        ${optionsHtml}
+                    </div>
+                `;
+                container.appendChild(qDiv);
+            }
+
+            // Update UI State
+            document.getElementById('page-text').innerText = `第 ${currentPage} / ${totalPages} 页`;
+            updateProgress();
+            
+            // Toggle Buttons
+            document.getElementById('btn-prev').classList.toggle('hidden', currentPage === 1);
+            document.getElementById('error-msg').classList.add('hidden');
+
+            if (currentPage === totalPages) {
+                document.getElementById('btn-next').classList.add('hidden');
+                document.getElementById('btn-submit').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-next').classList.remove('hidden');
+                document.getElementById('btn-submit').classList.add('hidden');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function saveAnswer(questionId, value) {
+            answers[questionId] = parseInt(value);
+            updateProgress();
+            document.getElementById('error-msg').classList.add('hidden');
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.keys(answers).length;
+            const percentage = (answeredCount / questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-text').innerText = `已答: ${answeredCount} / ${questions.length}`;
+        }
+
+        function validateCurrentPage() {
+            const startIdx = (currentPage - 1) * questionsPerPage;
+            const endIdx = Math.min(startIdx + questionsPerPage, questions.length);
+            for (let i = startIdx; i < endIdx; i++) {
+                if (!answers[questions[i].id]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function nextPage() {
+            if (!validateCurrentPage()) {
+                document.getElementById('error-msg').classList.remove('hidden');
+                return;
+            }
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+            }
+        }
+
+        function submitTest() {
+            if (!validateCurrentPage()) {
+                document.getElementById('error-msg').classList.remove('hidden');
+                return;
+            }
+            calculateResults();
+        }
+
+        function calculateResults() {
+            // Hide test, show results
+            document.getElementById('test-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Initialize scores
+            const scores = { 'R': 0, 'I': 0, 'A': 0, 'S': 0, 'E': 0, 'C': 0 };
+            
+            // Sum answers
+            for (const q of questions) {
+                scores[q.type] += answers[q.id];
+            }
+
+            // Convert to array and sort
+            const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            
+            // Get top 3
+            const top3 = sortedScores.slice(0, 3);
+            const hollandCode = top3.map(item => item[0]).join('');
+            
+            document.getElementById('holland-code').innerText = hollandCode;
+
+            // Render Chart
+            renderChart(scores);
+            // Render Details
+            renderScoreDetails(sortedScores);
+            // Render Analysis
+            renderAnalysis(top3);
+        }
+
+        function renderChart(scores) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            const labels = ['现实型 (R)', '研究型 (I)', '艺术型 (A)', '社会型 (S)', '企业型 (E)', '常规型 (C)'];
+            const data = [scores['R'], scores['I'], scores['A'], scores['S'], scores['E'], scores['C']];
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '你的各维度得分',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 50,
+                            ticks: { stepSize: 10 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function renderScoreDetails(sortedScores) {
+            const container = document.getElementById('score-details');
+            container.innerHTML = '';
+            
+            // sortedScores is array of [Type, Score]
+            const maxScore = 50; // 10 questions * 5 points
+
+            sortedScores.forEach((item, index) => {
+                const type = item[0];
+                const score = item[1];
+                const info = categoryInfo[type];
+                const percent = (score / maxScore) * 100;
+                
+                // Top 3 gets special highlight
+                const isTop = index < 3;
+                const barColor = isTop ? info.color : '#e5e7eb';
+                const textColor = isTop ? 'text-gray-800 font-bold' : 'text-gray-500';
+
+                const html = `
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm ${textColor}">${info.name} (${type})</span>
+                            <span class="text-sm ${textColor}">${score} 分</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full" style="width: ${percent}%; background-color: ${barColor}"></div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        function renderAnalysis(top3) {
+            const container = document.getElementById('trait-analysis');
+            container.innerHTML = '';
+
+            // Explaining the Holland Code
+            const codeExplanation = document.createElement('div');
+            codeExplanation.className = "p-5 bg-blue-50 rounded-lg text-gray-700 leading-relaxed text-sm mb-6";
+            codeExplanation.innerHTML = `
+                <p><strong>关于你的代码 (${top3.map(i=>i[0]).join('')})：</strong> 霍兰德认为，大多数人可以是这六种人格类型中某三种的组合。你的第一代码代表你最主要的人格特征，第二、第三代码为辅助特征。这三者的组合塑造了你独特的职业偏好。</p>
+            `;
+            container.appendChild(codeExplanation);
+
+            // Iterate Top 3
+            top3.forEach((item, index) => {
+                const type = item[0];
+                const info = categoryInfo[type];
+                
+                const rankLabels = ['主导特质 (第一维度)', '辅助特质 (第二维度)', '补充特质 (第三维度)'];
+
+                const html = `
+                    <div class="border border-gray-100 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg" style="background-color: ${info.color}">
+                                ${type}
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-800">${info.name}</h4>
+                                <span class="text-xs text-gray-500 uppercase tracking-wider">${rankLabels[index]}</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-4 leading-relaxed">${info.desc}</p>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <p class="text-sm text-gray-700"><strong class="text-gray-900"><i data-lucide="briefcase" class="inline w-4 h-4 mr-1 text-gray-500"></i>典型适用职业：</strong> ${info.jobs}</p>
+                        </div>
+                    </div>
+                `;
+                
+                // We use DOMParser to insert HTML and re-init lucide icons
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                container.appendChild(tempDiv.firstElementChild);
+            });
+            
+            lucide.createIcons();
+        }
+
+    </script>
+</body>
+</html>
